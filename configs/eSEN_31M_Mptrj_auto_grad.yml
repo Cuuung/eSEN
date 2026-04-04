@@ -1,5 +1,6 @@
 trainer: mlip_trainer
-
+task:
+  strict_load: False
 dataset:
   train:
     format: lmdb
@@ -121,3 +122,5 @@ optim:
   clip_grad_norm: 100
   ema_decay: 0.999
   eval_every: 500
+
+  keep_last_k_checkpoints: 10

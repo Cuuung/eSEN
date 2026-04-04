@@ -217,6 +217,9 @@ class BaseTrainer(ABC):
         self.primary_metric = None
         self.ema = None
 
+        # 梯度nan检测：
+        self._nan_grad_detected = False
+
         self.load(inference_only)
 
     @abstractmethod
@@ -956,6 +959,17 @@ class BaseTrainer(ABC):
             )
             if self.logger is not None:
                 self.logger.log({"grad_norm": grad_norm}, step=self.step, split="train")
+            # 梯度检测，同步所有卡，任意一卡 NaN 则全部停止
+            nan_flag = torch.ones(1, device=self.device) if torch.isnan(grad_norm) else torch.zeros(1, device=self.device)
+            nan_flag = distutils.all_reduce(nan_flag, average=False)
+            if nan_flag.item() > 0:
+                logging.error(
+                    f"[NaN Gradient] step={self.step} epoch={self.epoch:.4f}, "
+                    "skipping optimizer.step, training will stop."
+                )
+                self._nan_grad_detected = True
+                self.optimizer.zero_grad()
+                return
         if self.scaler:
             self.scaler.step(self.optimizer)
             self.scaler.update()

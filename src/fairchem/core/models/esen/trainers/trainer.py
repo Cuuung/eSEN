@@ -86,6 +86,20 @@ class MLIPTrainer(OCPTrainer):
             )
         else:
             self.ema = None
+    def _save_rolling_checkpoint(self, epoch_int: int) -> None:
+        keep_k = self.config["optim"].get("keep_last_k_checkpoints", 10)
+        ckpt_file = f"checkpoint_epoch{epoch_int + 1}_step{self.step}.pt"
+        self.save(checkpoint_file=ckpt_file, training_state=True)
+        if not hasattr(self, "_ckpt_history"):
+            self._ckpt_history = []
+        ckpt_dir = self.config["cmd"]["checkpoint_dir"]
+        self._ckpt_history.append(os.path.join(ckpt_dir, ckpt_file))
+        while len(self._ckpt_history) > keep_k:
+            old = self._ckpt_history.pop(0)
+            if os.path.exists(old):
+                os.remove(old)
+                logging.info(f"[Checkpoint] Removed old checkpoint: {old}")
+
     def train(self, disable_eval_tqdm: bool = False) -> None:
         ensure_fitted(self._unwrapped_model, warn=True)
 
@@ -99,6 +113,8 @@ class MLIPTrainer(OCPTrainer):
         else:
             primary_metric = self.primary_metric
         self.metrics = {}
+        self._nan_grad_detected = False
+        nan_stop = False
 
         start_epoch = self.step // len(self.train_loader)
 
@@ -156,7 +172,10 @@ class MLIPTrainer(OCPTrainer):
 
                 loss = self.scaler.scale(loss) if self.scaler else loss
                 self._backward(loss)
-
+                # 检测梯度是否nan
+                if self._nan_grad_detected:
+                    nan_stop = True  # 是否在检测到nan梯度时停止训练
+                    break
                 log_dict = {k: self.metrics[k]["metric"] for k in self.metrics}
                 log_dict.update({
                     "lr": self.scheduler.get_lr(),
@@ -175,7 +194,7 @@ class MLIPTrainer(OCPTrainer):
                     self.logger.log(log_dict, step=self.step, split="train")
 
                 if checkpoint_every != -1 and self.step % checkpoint_every == 0:
-                    self.save(checkpoint_file="checkpoint.pt", training_state=True)
+                    self._save_rolling_checkpoint(epoch_int)
 
                 if self.step % eval_every == 0:
                     if self.val_loader is not None:
@@ -203,9 +222,11 @@ class MLIPTrainer(OCPTrainer):
                     self.scheduler.step()
 
             torch.cuda.empty_cache()
-
+            if nan_stop:
+                break
             if checkpoint_every == -1:
-                self.save(checkpoint_file="checkpoint.pt", training_state=True)
+                self._save_rolling_checkpoint(epoch_int)
+
 
 
 @dataclass
@@ -514,6 +535,23 @@ class MLIP_DeNS_Trainer(MLIPTrainer):
             if getattr(head, "use_denoising", False)
         )
 
+    def _save_rolling_checkpoint(self) -> None:
+        """
+        We save rolling checkpoints during training, but we don't want to keep all of them. This function is to keep only the last k checkpoints and delete older ones.
+        """
+        keep_k = self.config["optim"].get("keep_k_checkpoints", 10) # keep the last k checkpoints
+        ckpt_file = f"checkpoint_epoch{int(self.epoch)}_step{self.step}.pt"
+        self.save(checkpoint_file=ckpt_file, training_state=True)
+        if not hasattr(self, '_ckpt_history'):
+            self._ckpt_history = []
+        ckpt_dir = self.config["cmd"]["checkpoint_dir"]
+        self._ckpt_history.append(os.path.join(ckpt_dir, ckpt_file))
+        while len(self._ckpt_history) > keep_k:
+            old = self._ckpt_history.pop(0)
+            if os.path.exists(old):
+                os.remove(old)
+
+
     def train(self, disable_eval_tqdm=False):
         ensure_fitted(self._unwrapped_model, warn=True)
 
@@ -610,7 +648,7 @@ class MLIP_DeNS_Trainer(MLIPTrainer):
                     )
 
                 if checkpoint_every != -1 and self.step % checkpoint_every == 0:
-                    self.save(checkpoint_file="checkpoint.pt", training_state=True)
+                    self._save_rolling_checkpoint()
 
                 # Evaluate on val set every `eval_every` iterations.
                 if self.step % eval_every == 0 or i == (len(self.train_loader) - 1):
@@ -649,7 +687,7 @@ class MLIP_DeNS_Trainer(MLIPTrainer):
             torch.cuda.empty_cache()
 
             if checkpoint_every == -1:
-                self.save(checkpoint_file="checkpoint.pt", training_state=True)
+                self._save_rolling_checkpoint()
 
     def _compute_loss(self, out, batch):
         batch_size = batch.natoms.numel()
