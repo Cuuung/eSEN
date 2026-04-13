@@ -617,15 +617,23 @@ class BaseTrainer(ABC):
             self.primary_metric = checkpoint.get("primary_metric", None)
 
             if "optimizer" in checkpoint:
-                self.optimizer.load_state_dict(checkpoint["optimizer"])
-            if "scheduler" in checkpoint and checkpoint["scheduler"] is not None:
+                try:
+                    self.optimizer.load_state_dict(checkpoint["optimizer"])
+                except ValueError as e:
+                    logging.warning(
+                        f"Could not load optimizer state dict: {e}. "
+                        "Skipping optimizer state loading (model weights will still be loaded)."
+                    )
+            if "scheduler" in checkpoint and checkpoint["scheduler"] is not None and self.scheduler is not None:
                 self.scheduler.scheduler.load_state_dict(checkpoint["scheduler"])
         else:
             logging.info(
                 "Loading checkpoint in inference-only mode, not loading keys associated with trainer state!"
             )
 
-        if "ema" in checkpoint and checkpoint["ema"] is not None and self.ema:
+        if inference_only:
+            self.ema = None
+        elif "ema" in checkpoint and checkpoint["ema"] is not None and self.ema:
             self.ema.load_state_dict(checkpoint["ema"])
         else:
             self.ema = None

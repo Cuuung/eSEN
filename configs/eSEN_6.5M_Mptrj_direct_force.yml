@@ -5,30 +5,19 @@ dataset:
     format: lmdb
     src: /data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train
     transforms:
+      element_references:
+        fit:
+          targets: [energy]
+          batch_size: 256
+          num_batches: 500
       normalizer:
-        energy:
-          mean: -188.811416
-          stdev: 190.308646
-        forces:
-          mean: 0.000000
-          stdev: 0.807904
-        stress:
-          mean: 0.956625
-          stdev: 38.581393
+        fit:
+          targets: [energy, forces, stress]
+          batch_size: 256
+          num_batches: 500
   val:
     format: lmdb
     src: /data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/val
-    transforms:
-      normalizer:
-        energy:
-          mean: -190.334354
-          stdev: 197.940001
-        forces:
-          mean: -0.000000
-          stdev: 0.809265
-        stress:
-          mean: 0.969798
-          stdev: 39.085265
 
 logger: tensorboard
 
@@ -41,15 +30,15 @@ outputs:
     property: forces
     irrep_dim: 1
     level: atom
-    train_on_free_atoms: False
-    eval_on_free_atoms: False
+    train_on_free_atoms: True
+    eval_on_free_atoms: True
   stress:
     property: stress
     level: system
 
 loss_functions:
   - energy:
-      fn: mae
+      fn: per_atom_mae
       coefficient: 1
   - forces:
       fn: l2mae
@@ -62,8 +51,12 @@ evaluation_metrics:
   metrics:
     energy:
       - mae
+      - per_atom_mae
     forces:
       - mae
+      - forcesx_mae
+      - forcesy_mae
+      - forcesz_mae
       - cosine_similarity
     stress:
       - mae
@@ -75,15 +68,15 @@ model:
   name: hydra
   pass_through_head_outputs: True
   backbone:
-    model: esen_backbone
+    model: esen_backbone_dens
     num_layers: 4
-    max_neighbors: 50
+    max_neighbors: 300
     cutoff: 6.0
     sphere_channels: 128
     hidden_channels: 128
     lmax: 2
     mmax: 2
-    edge_channels: 192
+    edge_channels: 128
     distance_function: gaussian
     num_distance_basis: 10
     regress_forces: True
@@ -93,8 +86,9 @@ model:
     use_pbc_single: True      # 加这防止某些小晶格导致卡死
     otf_graph: True
     norm_type: rms_norm_sh
-    act_type: s2
-    mlp_type: grid
+    act_type: gate
+    mlp_type: spectral
+    use_envelope: True
   heads:
     energy:                                                                                                           
       module: esen_mlp_energy_head
@@ -109,7 +103,7 @@ optim:
   batch_size: 32
   eval_batch_size: 32
   load_balancing: atoms
-  num_workers: 4
+  num_workers: 8
   lr_initial: 0.0004
 
   optimizer: AdamW
@@ -126,6 +120,6 @@ optim:
   max_epochs: 100
   clip_grad_norm: 100
   ema_decay: 0.999
-  eval_every: 500
+  eval_every: 5000
 
   keep_last_k_checkpoints: 10

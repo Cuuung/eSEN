@@ -96,9 +96,12 @@ class MLIPTrainer(OCPTrainer):
         self._ckpt_history.append(os.path.join(ckpt_dir, ckpt_file))
         while len(self._ckpt_history) > keep_k:
             old = self._ckpt_history.pop(0)
-            if os.path.exists(old):
-                os.remove(old)
-                logging.info(f"[Checkpoint] Removed old checkpoint: {old}")
+            if distutils.is_master():
+                try:
+                    os.remove(old)
+                    logging.info(f"[Checkpoint] Removed old checkpoint: {old}")
+                except FileNotFoundError:
+                    logging.warning(f"[Checkpoint] Old checkpoint already removed: {old}")
 
     def train(self, disable_eval_tqdm: bool = False) -> None:
         ensure_fitted(self._unwrapped_model, warn=True)

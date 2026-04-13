@@ -1,0 +1,130 @@
+trainer: mlip_trainer
+task:
+  strict_load: False
+  load_weights_only: True
+dataset:
+  train:
+    format: aselmdb
+    src: /data/share/dataset/periodicSystem/omat24/training
+    a2g_args:
+      r_energy: True
+      r_forces: True
+      r_stress: True
+    transforms:
+      element_references:
+        fit:
+          targets: [energy]
+          batch_size: 256
+          num_batches: 500
+      normalizer:
+        fit:
+          targets: [energy, forces, stress]
+          batch_size: 256
+          num_batches: 500
+  val:
+    format: aselmdb
+    src: /data/share/dataset/periodicSystem/omat24/validation
+    a2g_args:
+      r_energy: True
+      r_forces: True
+      r_stress: True
+
+logger: tensorboard
+
+outputs:
+  energy:
+    property: energy
+    shape: 1
+    level: system
+  forces:
+    property: forces
+    irrep_dim: 1
+    level: atom
+    train_on_free_atoms: True
+    eval_on_free_atoms: True
+  stress:
+    property: stress
+    level: system
+
+loss_functions:
+  - energy:
+      fn: per_atom_mae
+      coefficient: 20
+  - forces:
+      fn: l2mae
+      coefficient: 20
+  - stress:
+      fn: mae
+      coefficient: 5
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - per_atom_mae
+    forces:
+      - mae
+      - forcesx_mae
+      - forcesy_mae
+      - forcesz_mae
+      - cosine_similarity
+    stress:
+      - mae
+  primary_metric: forces_mae
+
+hide_eval_progressbar: False
+
+model:
+  name: hydra
+  pass_through_head_outputs: True
+  backbone:
+    model: esen_backbone_dens
+    num_layers: 10
+    max_neighbors: 300
+    cutoff: 6.0
+    sphere_channels: 128
+    hidden_channels: 128
+    lmax: 3
+    mmax: 2
+    edge_channels: 128
+    distance_function: gaussian
+    num_distance_basis: 64
+    regress_forces: True
+    direct_forces: False
+    regress_stress: True
+    use_pbc: True
+    use_pbc_single: True # 加这某些小晶格导致卡死
+    otf_graph: True
+    norm_type: rms_norm_sh
+    act_type: gate
+    mlp_type: spectral
+    use_envelope: True
+  heads:
+    EFS:
+      module: esen_mlp_efs_head_dens
+# 512 batch 0.0003
+optim:
+  batch_size: 8
+  eval_batch_size: 8
+  load_balancing: atoms
+  load_balancing_on_error: warn_and_no_balance
+  num_workers: 8
+  lr_initial: 0.00035
+
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.001
+
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_epochs: 0.1
+    warmup_factor: 0.2
+    lr_min_factor: 0.01
+
+  max_epochs: 2
+  clip_grad_norm: 100
+  ema_decay: 0.999
+  eval_every: 5000
+
+  keep_last_k_checkpoints: 10

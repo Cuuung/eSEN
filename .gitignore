@@ -1,5 +1,6 @@
 wandb
 /data
+share/
 checkpoints
 results
 logs

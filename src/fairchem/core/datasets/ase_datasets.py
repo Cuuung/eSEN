@@ -18,8 +18,13 @@ from glob import glob
 from pathlib import Path
 from typing import Any, Callable
 
+import json
+import zlib
+
 import ase
+import lmdb
 import numpy as np
+from ase.calculators.singlepoint import SinglePointCalculator
 from torch import tensor
 from tqdm import tqdm
 
@@ -480,9 +485,9 @@ class AseDBDataset(AseAtomsDataset):
         elif os.path.isfile(config["src"]):
             filepaths = [config["src"]]
         elif os.path.isdir(config["src"]):
-            filepaths = sorted(glob(f'{config["src"]}/*'))
+            filepaths = sorted(glob(f'{config["src"]}/**/*', recursive=True))
         else:
-            filepaths = sorted(glob(config["src"]))
+            filepaths = sorted(glob(config["src"], recursive=True))
 
         self.dbs = []
 
@@ -574,3 +579,107 @@ class AseDBDataset(AseAtomsDataset):
             return super().sample_property_metadata(num_samples)
 
         return copy.deepcopy(self.dbs[0].metadata)
+
+
+@registry.register_dataset("aselmdb")
+class AseLmdbDataset(AseAtomsDataset):
+    """
+    Dataset for directories of .aselmdb files (LMDB + zlib-compressed JSON).
+
+    .aselmdb files are LMDB databases where each entry is stored as a
+    zlib-compressed JSON representation of an ASE Atoms object including
+    calculator results (energy, forces, stress). Keys are 1-based integer
+    strings (b'1', b'2', ...).
+
+    Designed for large datasets like omat24. Uses lmdb.stat()["entries"] for
+    O(1) entry counting instead of iterating all rows.
+
+    args:
+        config (dict):
+            src (str): Path to a directory containing .aselmdb files (searched
+                recursively), a glob pattern, or a single .aselmdb file path.
+            a2g_args (dict): Passed to AtomsToGraphs. Set r_energy/r_forces/
+                r_stress to True for training datasets.
+    """
+
+    def _load_dataset_get_ids(self, config: dict) -> list[int]:
+        src = config["src"]
+        if os.path.isdir(src):
+            filepaths = sorted(glob(f"{src}/**/*.aselmdb", recursive=True))
+        elif os.path.isfile(src):
+            filepaths = [src]
+        else:
+            filepaths = sorted(glob(src, recursive=True))
+
+        self.envs = []
+        counts = []
+        for path in filepaths:
+            try:
+                env = lmdb.open(
+                    path,
+                    subdir=False,
+                    readonly=True,
+                    lock=False,
+                    readahead=False,
+                    meminit=False,
+                )
+                n = env.stat()["entries"]
+                # Each .aselmdb has a 'nextid' metadata key counted in stat().
+                with env.begin() as txn:
+                    if txn.get(b"nextid") is not None:
+                        n -= 1
+                counts.append(n)
+                self.envs.append(env)
+            except Exception as e:
+                logging.warning(f"Failed to open {path}: {e}")
+
+        if not self.envs:
+            return []
+
+        self._env_cumulative = np.cumsum(counts).tolist()
+        ids = list(range(int(self._env_cumulative[-1])))
+
+        return ids
+
+    def get_atoms(self, idx: int) -> ase.Atoms:
+        env_idx = bisect.bisect(self._env_cumulative, idx)
+        el_idx = idx if env_idx == 0 else idx - self._env_cumulative[env_idx - 1]
+        key = f"{int(el_idx) + 1}".encode("ascii")  # 1-based keys
+
+        with self.envs[env_idx].begin() as txn:
+            raw = txn.get(key)
+
+        if raw is None:
+            raise IndexError(f"Key {key!r} not found in LMDB file {env_idx}")
+
+        data = json.loads(zlib.decompress(raw))
+
+        atoms = ase.Atoms(
+            numbers=data["numbers"],
+            positions=data["positions"],
+            pbc=data["pbc"],
+            cell=data["cell"],
+        )
+
+        calc_results = {}
+        if "energy" in data:
+            calc_results["energy"] = float(data["energy"])
+        if "forces" in data:
+            calc_results["forces"] = np.array(data["forces"])
+        if "stress" in data:
+            calc_results["stress"] = np.array(data["stress"])
+        if calc_results:
+            atoms.calc = SinglePointCalculator(atoms, **calc_results)
+
+        meta = data.get("data", {})
+        atoms.info["sid"] = meta.get("sid", data.get("unique_id", str(idx)))
+        atoms.info["fid"] = 0
+
+        return atoms
+
+    def __del__(self):
+        for env in getattr(self, "envs", []):
+            try:
+                env.close()
+            except Exception:
+                pass
