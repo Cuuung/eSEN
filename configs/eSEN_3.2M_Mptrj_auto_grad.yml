@@ -3,7 +3,7 @@ trainer: mlip_trainer
 dataset:
   train:
     format: lmdb
-    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train
+    src: /data/share/dataset/periodicSystem/MPtrj/lmdb/train
     transforms:
       element_references:
         fit:
@@ -17,7 +17,7 @@ dataset:
           num_batches: 500
   val:
     format: lmdb
-    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
+    src: /data/share/dataset/periodicSystem/MPtrj/lmdb/val
 
 logger: tensorboard
 
