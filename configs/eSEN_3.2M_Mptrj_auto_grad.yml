@@ -1,9 +1,11 @@
 trainer: mlip_trainer
-
+task:
+  strict_load: False
+  load_weights_only: True
 dataset:
   train:
     format: lmdb
-    src: /data/share/dataset/periodicSystem/MPtrj/lmdb/train
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train
     transforms:
       element_references:
         fit:
@@ -17,7 +19,7 @@ dataset:
           num_batches: 500
   val:
     format: lmdb
-    src: /data/share/dataset/periodicSystem/MPtrj/lmdb/val
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
 
 logger: tensorboard
 
@@ -39,13 +41,13 @@ outputs:
 loss_functions:
   - energy:
       fn: per_atom_mae
-      coefficient: 1
+      coefficient: 20
   - forces:
       fn: l2mae
-      coefficient: 10
+      coefficient: 20
   - stress:
       fn: mae
-      coefficient: 100
+      coefficient: 5
 
 evaluation_metrics:
   metrics:
@@ -111,7 +113,7 @@ optim:
     warmup_factor: 0.2
     lr_min_factor: 0.01
 
-  max_epochs: 100
+  max_epochs: 40
   clip_grad_norm: 100
   ema_decay: 0.999
   eval_every: 5000
