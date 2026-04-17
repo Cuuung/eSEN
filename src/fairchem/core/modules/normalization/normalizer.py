@@ -244,7 +244,7 @@ def fit_normalizers(
     for target in targets:
         target_vector = torch.cat(target_vectors[target], dim=0)
         values = {"mean": target_vector.mean()}
-        if target in override_values:
+        if override_values and target in override_values:
             for name, val in override_values[target].items():
                 values[name] = torch.tensor(val)
         # calculate root mean square deviation

@@ -3,7 +3,7 @@ trainer: mlip_trainer
 dataset:
   val:
     format: lmdb
-    src: /data/home/liuxiangjia/fairchem/share/dataset/SPICE-MACE-OFF/test_large_neut_all.lmdb
+    src: /mnt/afs/home/share/dataset/SPICE-MACE-OFF/test_large_neut_all.lmdb
     use_train_settings: False
 
 logger: tensorboard

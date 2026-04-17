@@ -4,7 +4,7 @@ task:
 dataset:
   train:
     format: aselmdb
-    src: /data/share/dataset/periodicSystem/omat24/training
+    src: /mnt/afs/share/dataset/periodicSystem/omat24/training
     a2g_args:
       r_energy: True
       r_forces: True
@@ -22,7 +22,7 @@ dataset:
           num_batches: 500
   val:
     format: aselmdb
-    src: /data/share/dataset/periodicSystem/omat24/validation
+    src: /mnt/afs/share/dataset/periodicSystem/omat24/validation
     a2g_args:
       r_energy: True
       r_forces: True

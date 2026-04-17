@@ -6,7 +6,7 @@ task:
 dataset:
   val:
     format: aselmdb
-    src: /data/share/dataset/periodicSystem/sAlex/val
+    src: /mnt/afs/share/dataset/periodicSystem/sAlex/val
     sample_n: 5000
     use_train_settings: False
     a2g_args:

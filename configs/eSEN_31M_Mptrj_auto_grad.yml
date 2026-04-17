@@ -5,7 +5,7 @@ task:
 dataset:
   train:
     format: lmdb
-    src: /data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train
+    src: /mnt/afs/home/share/dataset/periodicSystem/MPtrj/lmdb/train
     transforms:
       element_references:
         fit:
@@ -19,7 +19,7 @@ dataset:
           num_batches: 500
   val:
     format: lmdb
-    src: /data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/val
+    src: /mnt/afs/home/share/dataset/periodicSystem/MPtrj/lmdb/val
 
 logger: tensorboard
 

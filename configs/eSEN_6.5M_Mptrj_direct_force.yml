@@ -3,7 +3,7 @@ trainer: mlip_trainer
 dataset:
   train:
     format: lmdb
-    src: /data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train
     transforms:
       element_references:
         fit:
@@ -17,7 +17,7 @@ dataset:
           num_batches: 500
   val:
     format: lmdb
-    src: /data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/val
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
 
 logger: tensorboard
 
@@ -39,13 +39,13 @@ outputs:
 loss_functions:
   - energy:
       fn: per_atom_mae
-      coefficient: 1
+      coefficient: 20
   - forces:
       fn: l2mae
-      coefficient: 10
+      coefficient: 20
   - stress:
       fn: mae
-      coefficient: 100
+      coefficient: 5
 
 evaluation_metrics:
   metrics:
