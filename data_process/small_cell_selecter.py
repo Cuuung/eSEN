@@ -2,8 +2,8 @@ import glob, pickle, os
 import lmdb
 import numpy as np
 
-SRC_DIR = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train"
-DST_PATH = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/small_cell_test/data.0.lmdb"
+SRC_DIR = "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train"
+DST_PATH = "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/small_cell_test/data.0.lmdb"
 MIN_CELL_LEN = 2.0
 
 os.makedirs(os.path.dirname(DST_PATH), exist_ok=True)

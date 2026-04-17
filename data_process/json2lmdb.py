@@ -18,9 +18,9 @@ from multiprocessing import Pool
 from tqdm import tqdm
 from ase.data import atomic_numbers as ase_atomic_numbers
 
-JSON_PATH  = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/MPtrj_2022.9_full.json"
-TRAIN_DIR  = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train"
-VAL_DIR    = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/val"
+JSON_PATH  = "/mnt/afs/share/dataset/periodicSystem/MPtrj/MPtrj_2022.9_full.json"
+TRAIN_DIR  = "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train"
+VAL_DIR    = "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val"
 
 NUM_WORKERS = 16   # 根据 CPU 核数调整
 

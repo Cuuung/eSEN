@@ -2,7 +2,7 @@ import glob, pickle
 import lmdb
 import numpy as np
 
-lmdb_dir = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train"
+lmdb_dir = "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train"
 
 MAX_NATOMS   = 300   # natoms 超过此值
 MIN_CELL_LEN = 2.0   # 晶格向量长度小于此值（Å）

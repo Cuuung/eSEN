@@ -18,7 +18,7 @@ import numpy as np
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
-BASE = "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/omat24"
+BASE = "/mnt/afs/share/dataset/periodicSystem/omat24"
 
 SPLITS = {
     "train": f"{BASE}/training",

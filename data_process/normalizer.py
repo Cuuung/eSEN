@@ -5,8 +5,8 @@ import lmdb
 import numpy as np
 
 DIRS = {
-    "train": "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/train",
-    "val":   "/data/home/liuxiangjia/fairchem/share/dataset/periodicSystem/MPtrj/lmdb/val",
+    "train": "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train",
+    "val":   "/mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val",
 }
 
 for split, dirpath in DIRS.items():
