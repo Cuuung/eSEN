@@ -29,7 +29,10 @@ dataset:
       r_forces: True
       r_stress: True
 
-logger: tensorboard
+logger:
+  name: wandb
+  project: esen-omat24
+  group: 31M-baseline
 
 outputs:
   energy:

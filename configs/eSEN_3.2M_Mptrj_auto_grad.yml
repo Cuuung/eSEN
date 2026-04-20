@@ -21,7 +21,10 @@ dataset:
     format: lmdb
     src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
 
-logger: tensorboard
+logger:
+  name: wandb
+  project: esen-mptrj
+  group: 3.2M-baseline
 
 outputs:
   energy:
