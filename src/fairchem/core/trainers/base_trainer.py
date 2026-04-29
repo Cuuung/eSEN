@@ -245,6 +245,15 @@ class BaseTrainer(ABC):
         self.load_task()
         self.load_model()
 
+        if self.config["optim"].get("freeze_backbone", False):
+            frozen = 0
+            for name, p in self.model.named_parameters():
+                if name.startswith("backbone.") or ".backbone." in name:
+                    p.requires_grad = False
+                    frozen += 1
+            if distutils.is_master():
+                logging.info(f"freeze_backbone: {frozen} backbone parameters frozen")
+
         if inference_only is False:
             self.load_datasets()
             self.load_references_and_normalizers()
@@ -637,6 +646,23 @@ class BaseTrainer(ABC):
             self.ema.load_state_dict(checkpoint["ema"])
         else:
             self.ema = None
+
+        remap_keys = self.config.get("task", {}).get("remap_keys", {})
+        if remap_keys:
+            ckpt_sd = checkpoint["state_dict"]
+            new_sd = {}
+            hits = 0
+            for k, v in ckpt_sd.items():
+                new_k = k
+                for old_prefix, new_prefix in remap_keys.items():
+                    if old_prefix in new_k:
+                        new_k = new_k.replace(old_prefix, new_prefix)
+                        hits += 1
+                        break
+                new_sd[new_k] = v
+            checkpoint["state_dict"] = new_sd
+            if distutils.is_master():
+                logging.info(f"remap_keys applied: {hits} keys renamed via {remap_keys}")
 
         new_dict = match_state_dict(self.model.state_dict(), checkpoint["state_dict"])
         strict = self.config.get("task", {}).get("strict_load", True)
