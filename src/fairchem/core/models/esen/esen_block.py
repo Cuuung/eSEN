@@ -222,10 +222,18 @@ class eSEN_Block(torch.nn.Module):
         act_type: str,
         mlp_type: str,
         use_envelope: bool,
+        ffn_hidden_channels: int | None = None,
     ) -> None:
         super().__init__()
         self.sphere_channels = sphere_channels
         self.hidden_channels = hidden_channels
+        # EquiformerV3 §4.2: enlarging FFN hidden (typically 4×) is cheap because
+        # the bottleneck is the edge-wise tensor product. None preserves legacy
+        # behavior of sharing one hidden size for both edge-wise and atom-wise.
+        ffn_hidden_channels = (
+            ffn_hidden_channels if ffn_hidden_channels is not None else hidden_channels
+        )
+        self.ffn_hidden_channels = ffn_hidden_channels
         self.lmax = lmax
         self.mmax = mmax
 
@@ -255,7 +263,7 @@ class eSEN_Block(torch.nn.Module):
         if mlp_type == "spectral":
             self.atom_wise = SpectralAtomwise(
                 sphere_channels=sphere_channels,
-                hidden_channels=hidden_channels,
+                hidden_channels=ffn_hidden_channels,
                 lmax=lmax,
                 mmax=mmax,
                 SO3_grid=SO3_grid,
@@ -263,7 +271,7 @@ class eSEN_Block(torch.nn.Module):
         elif mlp_type == "grid":
             self.atom_wise = GridAtomwise(
                 sphere_channels=sphere_channels,
-                hidden_channels=hidden_channels,
+                hidden_channels=ffn_hidden_channels,
                 lmax=lmax,
                 mmax=mmax,
                 SO3_grid=SO3_grid,

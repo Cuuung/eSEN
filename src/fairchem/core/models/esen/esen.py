@@ -59,6 +59,7 @@ class eSEN_Backbone(nn.Module, GraphModelMixin):
         # escnmd specific
         num_layers: int = 2,
         hidden_channels: int = 128,
+        ffn_hidden_channels: int | None = None,
         norm_type: str = "rms_norm_sh",
         act_type: str = "s2",
         mlp_type: str = "grid",
@@ -160,6 +161,9 @@ class eSEN_Backbone(nn.Module, GraphModelMixin):
 
         self.num_layers = num_layers
         self.hidden_channels = hidden_channels
+        self.ffn_hidden_channels = (
+            ffn_hidden_channels if ffn_hidden_channels is not None else hidden_channels
+        )
         self.norm_type = norm_type
         self.act_type = act_type
 
@@ -179,6 +183,7 @@ class eSEN_Backbone(nn.Module, GraphModelMixin):
                 self.act_type,
                 self.mlp_type,
                 self.use_envelope,
+                ffn_hidden_channels=self.ffn_hidden_channels,
             )
             self.blocks.append(block)
 
