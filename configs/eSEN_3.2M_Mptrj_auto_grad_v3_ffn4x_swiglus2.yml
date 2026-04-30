@@ -1,0 +1,132 @@
+trainer: mlip_trainer
+task:
+  strict_load: False
+  load_weights_only: True
+dataset:
+  train:
+    format: lmdb
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train
+    transforms:
+      element_references:
+        fit:
+          targets: [energy]
+          batch_size: 256
+          num_batches: 500
+      # Unified rmsd = forces.rmsd so autograd-derived F/σ match normalized targets.
+      # Means for forces/stress must be 0 for the same reason; energy mean is free.
+      normalizer:
+        energy:
+          mean: 1.422548
+          rmsd: 1.305589
+        forces:
+          mean: 0.0
+          rmsd: 1.305589
+        stress:
+          mean: 0.0
+          rmsd: 1.305589
+  val:
+    format: lmdb
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
+
+logger:
+  name: wandb
+  project: esen-mptrj
+  group: 3.2M-v3
+
+outputs:
+  energy:
+    property: energy
+    shape: 1
+    level: system
+  forces:
+    property: forces
+    irrep_dim: 1
+    level: atom
+    train_on_free_atoms: True
+    eval_on_free_atoms: True
+  stress:
+    property: stress
+    level: system
+
+loss_functions:
+  - energy:
+      fn: per_atom_mae
+      coefficient: 20
+  - forces:
+      fn: l2mae
+      coefficient: 20
+  - stress:
+      fn: mae
+      coefficient: 5
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - per_atom_mae
+    forces:
+      - mae
+      - forcesx_mae
+      - forcesy_mae
+      - forcesz_mae
+      - cosine_similarity
+    stress:
+      - mae
+  primary_metric: forces_mae
+
+hide_eval_progressbar: False
+
+model:
+  name: hydra
+  pass_through_head_outputs: True
+  backbone:
+    model: esen_backbone_dens
+    num_layers: 2
+    max_neighbors: 300
+    cutoff: 6.0
+    sphere_channels: 128
+    hidden_channels: 128
+    ffn_hidden_channels: 512  # EquiformerV3 §4.2: 4× sphere_channels for FFN only; edge-wise stays at hidden_channels
+    lmax: 2
+    mmax: 2
+    edge_channels: 128
+    distance_function: gaussian
+    num_distance_basis: 10
+    regress_forces: True
+    direct_forces: False
+    regress_stress: True
+    use_pbc: True
+    use_pbc_single: True
+    otf_graph: True
+    norm_type: rms_norm_sh
+    act_type: swiglu_s2
+    mlp_type: spectral
+    use_envelope: True
+  heads:
+    EFS:
+      module: esen_mlp_efs_head_dens
+
+optim:
+  batch_size: 32
+  eval_batch_size: 32
+  load_balancing: atoms
+  num_workers: 8
+  lr_initial: 0.0004
+
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.001
+
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_epochs: 1
+    warmup_factor: 0.2
+    lr_min_factor: 0.01
+
+  max_epochs: 40
+  clip_grad_norm: 100
+  ema_decay: 0.999
+  eval_every: 5000
+
+  keep_last_k_checkpoints: 10
