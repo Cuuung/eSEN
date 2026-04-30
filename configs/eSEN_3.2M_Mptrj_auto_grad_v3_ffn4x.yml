@@ -5,26 +5,33 @@ task:
 dataset:
   train:
     format: lmdb
-    src: /mnt/afs/home/share/dataset/periodicSystem/MPtrj/lmdb/train
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/train
     transforms:
       element_references:
         fit:
           targets: [energy]
           batch_size: 256
           num_batches: 500
+      # Unified rmsd = forces.rmsd so autograd-derived F/σ match normalized targets.
+      # Means for forces/stress must be 0 for the same reason; energy mean is free.
       normalizer:
-        fit:
-          targets: [energy, forces, stress]
-          batch_size: 256
-          num_batches: 500
+        energy:
+          mean: 1.422548
+          rmsd: 1.305589
+        forces:
+          mean: 0.0
+          rmsd: 1.305589
+        stress:
+          mean: 0.0
+          rmsd: 1.305589
   val:
     format: lmdb
-    src: /mnt/afs/home/share/dataset/periodicSystem/MPtrj/lmdb/val
+    src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
 
 logger:
   name: wandb
   project: esen-mptrj
-  group: 31M-v3-ffn4x
+  group: 3.2M-v3-ffn4x
 
 outputs:
   energy:
@@ -74,13 +81,13 @@ model:
   pass_through_head_outputs: True
   backbone:
     model: esen_backbone_dens
-    num_layers: 10
+    num_layers: 2
     max_neighbors: 300
     cutoff: 6.0
     sphere_channels: 128
     hidden_channels: 128
     ffn_hidden_channels: 512  # EquiformerV3 §4.2: 4× sphere_channels for FFN only; edge-wise stays at hidden_channels
-    lmax: 3
+    lmax: 2
     mmax: 2
     edge_channels: 128
     distance_function: gaussian
@@ -89,7 +96,7 @@ model:
     direct_forces: False
     regress_stress: True
     use_pbc: True
-    use_pbc_single: True # 加这某些小晶格导致卡死
+    use_pbc_single: True
     otf_graph: True
     norm_type: rms_norm_sh
     act_type: gate
@@ -98,13 +105,13 @@ model:
   heads:
     EFS:
       module: esen_mlp_efs_head_dens
-# 512 batch, 0.0002
+
 optim:
-  batch_size: 8
-  eval_batch_size: 8
+  batch_size: 32
+  eval_batch_size: 32
   load_balancing: atoms
   num_workers: 8
-  lr_initial: 0.00035
+  lr_initial: 0.0004
 
   optimizer: AdamW
   optimizer_params:
@@ -113,11 +120,11 @@ optim:
   scheduler: LambdaLR
   scheduler_params:
     lambda_type: cosine
-    warmup_epochs: 0.1
+    warmup_epochs: 1
     warmup_factor: 0.2
     lr_min_factor: 0.01
 
-  max_epochs: 27
+  max_epochs: 40
   clip_grad_norm: 100
   ema_decay: 0.999
   eval_every: 5000
