@@ -31,7 +31,7 @@ dataset:
 logger:
   name: wandb
   project: esen-mptrj
-  group: 3.2M-v3-ffn4x
+  group: 3.2M-v3
 
 outputs:
   energy:

@@ -12,7 +12,7 @@ import copy
 import torch
 import torch.nn as nn
 
-from .nn.activation import GateActivation, SeparableS2Activation
+from .nn.activation import GateActivation, SeparableS2Activation, SwiGLU_S2_Activation
 from .nn.layer_norm import get_normalization_layer
 from .nn.radial import PolynomialEnvelope
 from .nn.so2_layers import SO2_Convolution
@@ -45,6 +45,10 @@ class Edgewise(torch.nn.Module):
         self.edge_channels_list = copy.deepcopy(edge_channels_list)
         self.act_type = act_type
 
+        # so2_conv_1 outputs `m_output_channels_1` per m-component; SwiGLU-S2
+        # halves channels via the bilinear chunk, so we double here so the
+        # downstream so2_conv_2 still sees `hidden_channels`.
+        m_output_channels_1 = self.hidden_channels
         if self.act_type == "gate":
             self.act = GateActivation(
                 lmax=self.lmax, mmax=self.mmax, num_channels=self.hidden_channels
@@ -55,12 +59,20 @@ class Edgewise(torch.nn.Module):
                 lmax=self.lmax, mmax=self.mmax, SO3_grid=self.SO3_grid
             )
             extra_m0_output_channels = self.hidden_channels
+        elif self.act_type == "swiglu_s2":
+            # EquiformerV3 §4.3: paper Eq. 7. Channel doubling matches V3's
+            # `SeparableGateS2Activation_SwiGLU_Merge` (+ ~38% conv params).
+            self.act = SwiGLU_S2_Activation(
+                lmax=self.lmax, mmax=self.mmax, num_channels=self.hidden_channels
+            )
+            extra_m0_output_channels = 3 * self.hidden_channels
+            m_output_channels_1 = 2 * self.hidden_channels
         else:
             raise ValueError(f"Unknown activation type {self.act_type}")
 
         self.so2_conv_1 = SO2_Convolution(
             2 * self.sphere_channels,
-            self.hidden_channels,
+            m_output_channels_1,
             self.lmax,
             self.mmax,
             self.mappingReduced,
