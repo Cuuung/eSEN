@@ -641,7 +641,10 @@ class BaseTrainer(ABC):
             )
 
         if inference_only:
-            self.ema = None
+            # Keep self.ema as constructed in load_extras; shadow_params get
+            # re-seeded from the freshly loaded model weights below so EMA
+            # tracks from the loaded state forward.
+            pass
         elif "ema" in checkpoint and checkpoint["ema"] is not None and self.ema:
             self.ema.load_state_dict(checkpoint["ema"])
         else:
@@ -667,6 +670,13 @@ class BaseTrainer(ABC):
         new_dict = match_state_dict(self.model.state_dict(), checkpoint["state_dict"])
         strict = self.config.get("task", {}).get("strict_load", True)
         load_state_dict(self.model, new_dict, strict=strict)
+
+        if inference_only and self.ema is not None:
+            self.ema.shadow_params = [
+                p.clone().detach()
+                for p in self.model.parameters()
+                if p.requires_grad
+            ]
 
         scale_dict = checkpoint.get("scale_dict", None)
         if scale_dict:
