@@ -12,18 +12,7 @@ dataset:
           targets: [energy]
           batch_size: 256
           num_batches: 500
-      # Unified rmsd = forces.rmsd so autograd-derived F/σ match normalized targets.
-      # Means for forces/stress must be 0 for the same reason; energy mean is free.
-      normalizer:
-        energy:
-          mean: 1.422548
-          rmsd: 1.305589
-        forces:
-          mean: 0.0
-          rmsd: 1.305589
-        stress:
-          mean: 0.0
-          rmsd: 1.305589
+
   val:
     format: lmdb
     src: /mnt/afs/share/dataset/periodicSystem/MPtrj/lmdb/val
